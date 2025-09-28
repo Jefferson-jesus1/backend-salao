@@ -31,27 +31,13 @@ SERVICOS = [
 # ===========================================================
 def get_db_connection():
     return pymysql.connect(
-        host=os.getenv("DB_HOST", "srv1965.hstgr.io"),        # Host remoto
-        user=os.getenv("DB_USER", "u855521630_jefferson"),      # Usuário do banco
-        password=os.getenv("DB_PASS", "Jefferson7-"),    # Senha do banco
-        database=os.getenv("DB_NAME", "u855521630_salao"),    # Nome do banco
-        port=int(os.getenv("DB_PORT", 3306)),          # Porta
+        host=os.getenv("DB_HOST", "srv1965.hstgr.io"),
+        user=os.getenv("DB_USER", "u855521630_jefferson"),
+        password=os.getenv("DB_PASS", "Jefferson7-"),
+        database=os.getenv("DB_NAME", "u855521630_salao"),
+        port=int(os.getenv("DB_PORT", 3306)),
         cursorclass=pymysql.cursors.DictCursor
     )
-
-@app.route("/teste_db")
-def teste_db():
-    try:
-        conn = get_db_connection()
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT NOW();")
-            hora = cursor.fetchone()
-        return f"Conexão OK! Hora do banco: {hora['NOW()']}"
-    except Exception as e:
-        return f"Erro na conexão: {e}"
-    finally:
-        conn.close()
-
 
 # ===========================================================
 # GERA HORÁRIOS AUTOMÁTICOS
@@ -202,7 +188,7 @@ def admin_remover(id):
     return jsonify({"status": "sucesso"})
 
 # ===========================================================
-# ROTA DE TESTE DE CONEXÃO (opcional)
+# ROTA DE TESTE DE CONEXÃO (mantida apenas uma vez)
 # ===========================================================
 @app.route("/teste_db")
 def teste_db():
