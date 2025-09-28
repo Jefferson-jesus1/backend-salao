@@ -1,36 +1,23 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask import Flask, request, jsonify, session, redirect, url_for
 from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = "chave_super_secreta_dev"
 ADMIN_PASSWORD = "1234"
 
-# ===========================================================
-# HORÁRIOS FIXOS
-# ===========================================================
+# Horários fixos
 HORARIOS = [
     "08:30", "10:00", "11:30",
     "13:00", "14:30", "16:00",
     "17:30", "18:00"
 ]
 
-# ===========================================================
-# AGENDAMENTOS EM MEMÓRIA
-# ===========================================================
+# Agendamentos em memória
 agendamentos = []
 
 # ===========================================================
-# ROTAS
+# ROTAS PÚBLICAS
 # ===========================================================
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-@app.route('/agendamento')
-def agendamento():
-    hoje = datetime.today().isoformat()
-    return render_template('agendamento.html', hoje=hoje, horarios=HORARIOS)
-
 @app.route('/horarios_disponiveis')
 def horarios_disponiveis():
     data = request.args.get('data')
@@ -43,17 +30,16 @@ def horarios_disponiveis():
 
 @app.route('/agendar', methods=['POST'])
 def agendar():
-    data = request.form.get('data')
-    horario = request.form.get('horario')
-    cliente = request.form.get('cliente')
-    telefone = request.form.get('telefone')
+    data = request.json.get('data')
+    horario = request.json.get('horario')
+    cliente = request.json.get('cliente')
+    telefone = request.json.get('telefone')
 
     if not all([data, horario, cliente, telefone]):
-        return "Dados incompletos", 400
+        return jsonify({"erro": "Dados incompletos"}), 400
 
-    # Verifica se já existe
     if any(a['data'] == data and a['horario'] == horario for a in agendamentos):
-        return "Horário já agendado!", 400
+        return jsonify({"erro": "Horário já agendado!"}), 400
 
     agendamentos.append({
         "data": data,
@@ -63,49 +49,42 @@ def agendar():
     })
 
     link_whatsapp = f"https://api.whatsapp.com/send?phone=55{telefone}&text=Olá, {cliente}! Seu agendamento foi confirmado para {data} às {horario}."
-    return render_template('sucesso.html', link_whatsapp=link_whatsapp)
+    return jsonify({"status": "sucesso", "link_whatsapp": link_whatsapp})
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route("/teste_db")
+def teste_db():
+    return jsonify({"status": "OK", "mensagem": "Simulação de conexão com o banco"})
+
+# ===========================================================
+# ROTAS ADMIN
+# ===========================================================
+@app.route('/login', methods=['POST'])
 def login():
-    if request.method == 'POST':
-        senha = request.form.get('senha')
-        if senha == ADMIN_PASSWORD:
-            session['logado'] = True
-            return redirect(url_for('admin'))
-        return "Senha incorreta!"
-    return '''
-        <form method="post">
-            <input type="password" name="senha" placeholder="Digite a senha">
-            <button type="submit">Entrar</button>
-        </form>
-    '''
+    senha = request.json.get('senha')
+    if senha == ADMIN_PASSWORD:
+        session['logado'] = True
+        return jsonify({"status": "sucesso"})
+    return jsonify({"erro": "Senha incorreta!"}), 401
 
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('login'))
+    return jsonify({"status": "logout_ok"})
 
-@app.route('/admin')
-def admin():
+@app.route('/admin/agendamentos')
+def admin_agendamentos():
     if not session.get('logado'):
-        return redirect(url_for('login'))
-    return render_template('admin.html', agendamentos=agendamentos)
+        return jsonify({"erro": "Acesso negado"}), 403
+    return jsonify({"agendamentos": agendamentos})
 
 @app.route('/admin/remover/<int:index>', methods=['POST'])
 def admin_remover(index):
     if not session.get('logado'):
-        return jsonify({"status": "erro", "mensagem": "Acesso negado"}), 403
+        return jsonify({"erro": "Acesso negado"}), 403
     if 0 <= index < len(agendamentos):
         agendamentos.pop(index)
         return jsonify({"status": "sucesso"})
-    return jsonify({"status": "erro", "mensagem": "Índice inválido"}), 400
-
-# ===========================================================
-# ROTA DE TESTE (SIMULA CONEXÃO DB)
-# ===========================================================
-@app.route("/teste_db")
-def teste_db():
-    return "Conexão simulada OK!"
+    return jsonify({"erro": "Índice inválido"}), 400
 
 # ===========================================================
 # WSGI EM MODO DEBUG
